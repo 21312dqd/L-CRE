@@ -11,8 +11,7 @@ LCRE (Low/High gene expression Classification using Regulatory Elements) is a de
 - **Sequence Encoding**: One-hot encoding of DNA sequences
 - **Hybrid Deep Learning Architecture**: Combined CNN and LSTM neural network
 - **Chromosome-level Validation**: Leave-one-chromosome-out cross-validation strategy
-- **Class Balancing**: Automatic balancing of high/low expression genes in training data
-- **Performance Tracking**: Model checkpointing and performance metrics logging for each epoch
+
 
 ## 🔧 Requirements
 
