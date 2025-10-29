@@ -2,8 +2,8 @@ LCRE - Gene Expression Classifier
 A deep learning-based tool for predicting plant gene expression levels from promoter and terminator sequences.
 📋 Overview
 LCRE (Low/High gene expression Classification using Regulatory Elements) is a deep learning framework that combines Convolutional Neural Networks (CNN) and Long Short-Term Memory (LSTM) networks to predict gene expression levels by analyzing promoter and terminator sequences. The current implementation provides a classifier for tomato (Solanum lycopersicum) genome.
-✨ Key Features
 
+✨ Key Features
 Sequence Encoding: One-hot encoding of DNA sequences
 Hybrid Deep Learning Architecture: Combined CNN and LSTM neural network
 Chromosome-level Validation: Leave-one-chromosome-out cross-validation strategy
