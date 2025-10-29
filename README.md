@@ -26,6 +26,9 @@ Installation
 bashpip install tensorflow pandas numpy pyranges pyfaidx scikit-learn
 📁 Data Requirements
 The project requires the following data file structure:
+
+
+
 project_root/
 ├── tpm_counts/
 │   └── solanum_counts.csv          # TPM expression data
