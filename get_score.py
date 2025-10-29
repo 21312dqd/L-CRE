@@ -11,7 +11,7 @@ import get_score
 import multiprocessing
 import os
 import multiprocessing
-# 确保在主程序开始时就设置多进程方法
+# Ensure multiprocessing start method is set at the beginning of the main program
 if __name__ == '__main__':
     multiprocessing.set_start_method('spawn', force=True)
 import os
@@ -26,6 +26,7 @@ from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLRO
 from sklearn.metrics import accuracy_score, roc_auc_score
 from sklearn.utils import shuffle
 import tensorflow as tf
+
 def onehot(seq):
     code = {'A': [1, 0, 0, 0],
             'C': [0, 1, 0, 0],
@@ -39,11 +40,12 @@ def onehot(seq):
         else:
             encoded[i, :] = code['unk']
     return encoded
+
 from sklearn.cluster import KMeans
 from pyfaidx import Fasta
 import pyranges as pr
-def prepare_valid_seqs(fasta, gtf, tpms, val_chrom, pkey=False, upstream=1000, downstream=500):
 
+def prepare_valid_seqs(fasta, gtf, tpms, val_chrom, pkey=False, upstream=1000, downstream=500):
     fasta = Fasta(f'genomes/{fasta}', as_raw=True, sequence_always_upper=True, read_ahead=10000)
     gene_models = pr.read_gtf(f'gene_models/{gtf}', as_df=True)
     gene_models = gene_models[gene_models['Feature'] == 'gene']
@@ -110,10 +112,10 @@ def prepare_valid_seqs(fasta, gtf, tpms, val_chrom, pkey=False, upstream=1000, d
         np.take(labels, low_val, axis=0),
         np.take(labels, high_val, axis=0)
     ])
-    # 在进行索引之前，添加以下调试信息
-    print(f"准备进行索引操作前的 x_val 形状: {x_val.shape}")
-    print(f"x_val 的数据类型: {x_val.dtype}")
-    print(f"x_val 的维度数: {x_val.ndim}")
+    # Add debug info before indexing
+    print(f"Shape of x_val before indexing: {x_val.shape}")
+    print(f"Data type of x_val: {x_val.dtype}")
+    print(f"Number of dimensions in x_val: {x_val.ndim}")
     gene_ids = np.concatenate([np.take(gene_ids, low_val, axis=0), np.take(gene_ids, high_val, axis=0)])
     x_val[:, upstream:upstream+3, :] = 0
     x_val[:, upstream+(downstream*2)+17:upstream+(downstream*2)+20, :] = 0
@@ -121,10 +123,10 @@ def prepare_valid_seqs(fasta, gtf, tpms, val_chrom, pkey=False, upstream=1000, d
 
 def plot_importance_analysis(all_importance_scores, mean_importance,
                              nucleotide_mean_importance, upstream, downstream):
-    """绘制重要性分析图"""
+    """Plot importance analysis figures"""
     plt.figure(figsize=(20, 16))
 
-    # 1. 平均重要性得分
+    # 1. Average importance score
     plt.subplot(4, 1, 1)
     plt.plot(mean_importance)
     plt.axvline(x=upstream, color='r', linestyle='--', label='TSS')
@@ -135,7 +137,7 @@ def plot_importance_analysis(all_importance_scores, mean_importance,
     plt.legend()
     plt.grid(True)
 
-    # 2. 重要性得分热图
+    # 2. Importance score heatmap
     plt.subplot(4, 1, 2)
     sns.heatmap(all_importance_scores[:min(100, len(all_importance_scores))],
                 cmap='coolwarm',
@@ -147,7 +149,7 @@ def plot_importance_analysis(all_importance_scores, mean_importance,
     plt.xlabel('Position')
     plt.ylabel('Sequence Index')
 
-    # 3. 累积重要性
+    # 3. Cumulative importance
     plt.subplot(4, 1, 3)
     cumulative_importance = np.cumsum(np.abs(mean_importance))
     cumulative_importance = cumulative_importance / cumulative_importance[-1]
@@ -160,7 +162,7 @@ def plot_importance_analysis(all_importance_scores, mean_importance,
     plt.legend()
     plt.grid(True)
 
-    # 4. 核苷酸重要性
+    # 4. Nucleotide importance
     plt.subplot(4, 1, 4)
     colors = {'A': 'red', 'T': 'green', 'C': 'blue', 'G': 'purple'}
     for nucleotide, importance in nucleotide_mean_importance.items():
@@ -177,47 +179,47 @@ def plot_importance_analysis(all_importance_scores, mean_importance,
     plt.show()
 
 def analyze_important_regions(mean_importance, upstream, downstream):
-    """分析重要序列区域"""
-    # 使用Z-score标准化找出显著区域
+    """Analyze important sequence regions"""
+    # Use Z-score to identify significant regions
     z_scores = (mean_importance - np.mean(mean_importance)) / np.std(mean_importance)
-    significant_positions = np.where(z_scores > 2)[0]  # 选择Z-score > 2的位置
+    significant_positions = np.where(z_scores > 2)[0]  # Select positions with Z-score > 2
 
     if len(significant_positions) == 0:
-        print("未发现显著重要的区域")
+        print("No significantly important regions found")
         return None
 
-    # 将连续的重要位置分组为区域
+    # Group consecutive important positions into regions
     regions = []
     current_region = [significant_positions[0]]
 
     for pos in significant_positions[1:]:
-        if pos - current_region[-1] <= 10:  # 如果位置间隔小于10bp，认为是同一区域
+        if pos - current_region[-1] <= 10:  # If gap is less than 10bp, consider same region
             current_region.append(pos)
         else:
-            if len(current_region) >= 5:  # 只保留长度≥5bp的区域
+            if len(current_region) >= 5:  # Only keep regions >= 5bp
                 regions.append(current_region)
             current_region = [pos]
 
     if len(current_region) >= 5:
         regions.append(current_region)
 
-    # 整理区域信息
+    # Organize region information
     region_info = []
     for i, region in enumerate(regions):
         region_start = region[0]
         region_end = region[-1]
         mean_score = np.mean(mean_importance[region_start:region_end + 1])
 
-        # 确定区域位置（相对于TSS/TTS）
+        # Determine region location (relative to TSS/TTS)
         if region_start < upstream:
-            location = f"TSS上游{upstream - region_start}bp"
+            location = f"{upstream - region_start}bp upstream of TSS"
         elif region_start > len(mean_importance) - upstream:
-            location = f"TTS下游{region_start - (len(mean_importance) - upstream)}bp"
+            location = f"{region_start - (len(mean_importance) - upstream)}bp downstream of TTS"
         else:
             if region_start < len(mean_importance) / 2:
-                location = f"TSS下游{region_start - upstream}bp"
+                location = f"{region_start - upstream}bp downstream of TSS"
             else:
-                location = f"TTS上游{len(mean_importance) - upstream - region_start}bp"
+                location = f"{len(mean_importance) - upstream - region_start}bp upstream of TTS"
 
         region_info.append({
             'Region': f'Region {i + 1}',
@@ -229,20 +231,21 @@ def analyze_important_regions(mean_importance, upstream, downstream):
         })
 
     regions_df = pd.DataFrame(region_info)
-    print("\n重要序列区域概要:")
+    print("\nSummary of important sequence regions:")
     print(regions_df.to_string(index=False))
 
     return regions_df
+
 def analyze_model_predictions(model_path, fasta_path, gtf_path, tpm_path, val_chrom,
                               upstream=10000, downstream=500, batch_size=16, num_steps=50,
                               pkey='sol', save_modisco_data=True):
     """
-    分析模型预测的序列和核苷酸重要性，并准备TF-MoDISco分析
+    Analyze sequence and nucleotide importance from model predictions and prepare data for TF-MoDISco
     """
-    print("加载数据...")
+    print("Loading data...")
     model = tf.keras.models.load_model(model_path)
 
-    print("准备验证序列...")
+    print("Preparing validation sequences...")
     x_val, y_val, gene_ids = prepare_valid_seqs(
         fasta=fasta_path,
         gtf=gtf_path,
@@ -254,11 +257,11 @@ def analyze_model_predictions(model_path, fasta_path, gtf_path, tpm_path, val_ch
     )
     print(f"x_val shape: {x_val.shape}")
 
-    print(f"总共加载了 {len(x_val)} 个验证序列")
-    print(f"序列形状: {x_val.shape}")
-    print(f"标签分布:\n{pd.Series(y_val).value_counts()}")
+    print(f"Total of {len(x_val)} validation sequences loaded")
+    print(f"Sequence shape: {x_val.shape}")
+    print(f"Label distribution:\n{pd.Series(y_val).value_counts()}")
 
-    print("\n计算序列重要性得分...")
+    print("\nComputing sequence importance scores...")
     all_importance_scores = []
     all_nucleotide_importance = {
         'A': np.zeros((len(x_val), x_val.shape[1])),
@@ -294,7 +297,7 @@ def analyze_model_predictions(model_path, fasta_path, gtf_path, tpm_path, val_ch
         all_importance_scores.extend(sequence_importance.numpy())
         contrib_scores[i:i + batch_size_actual] = importance.numpy()
 
-        # 计算假设贡献分数（可以根据需要调整）
+        # Compute hypothetical contribution scores (can be adjusted as needed)
         hypothetical_scores[i:i + batch_size_actual] = np.abs(importance.numpy())
 
         for nucleotide in ['A', 'T', 'C', 'G']:
@@ -314,7 +317,7 @@ def analyze_model_predictions(model_path, fasta_path, gtf_path, tpm_path, val_ch
         for nucleotide, scores in all_nucleotide_importance.items()
     }
 
-    # 可视化结果
+    # Visualize results
     plot_importance_analysis(
         all_importance_scores,
         mean_importance,
@@ -323,10 +326,10 @@ def analyze_model_predictions(model_path, fasta_path, gtf_path, tpm_path, val_ch
         downstream
     )
 
-    # 分析重要区域
+    # Analyze important regions
     regions_df = analyze_important_regions(mean_importance, upstream, downstream)
 
-    # 保存TF-MoDISco所需数据
+    # Save data required for TF-MoDISco
     if save_modisco_data:
         os.makedirs('modisco', exist_ok=True)
         with h5py.File(f'modisco/{val_chrom}_scores.h5', 'w') as h5_data:
@@ -339,19 +342,17 @@ def analyze_model_predictions(model_path, fasta_path, gtf_path, tpm_path, val_ch
             contrib_scores, hypothetical_scores, x_val)
 
 
-
-
-# 2. 主函数中添加错误处理
+# 2. Add error handling in main function
 def main():
     try:
-        # 设置参数
+        # Set parameters
         model_path = r''
         fasta_path = ''
         gtf_path = ''
         tpm_path = ''
         val_chrom = ''
 
-        # 运行序列重要性分析
+        # Run sequence importance analysis
         results = analyze_model_predictions(
             model_path=model_path,
             fasta_path=fasta_path,
@@ -360,14 +361,12 @@ def main():
             val_chrom=val_chrom
         )
 
-
         (importance_scores, mean_importance,
          nucleotide_mean_importance, regions_df,
          gene_ids, contrib_scores,
          hypothetical_scores, one_hots) = results
 
-
-        # 保存结果
+        # Save results
         np.save('importance_scores5.npy', importance_scores)
         np.save('mean_importance5.npy', mean_importance)
 
@@ -377,10 +376,10 @@ def main():
         if regions_df is not None:
             regions_df.to_csv('important_regions5.csv', index=False)
 
-        print("\n分析完成！结果已保存到文件中。")
+        print("\nAnalysis complete! Results have been saved to files.")
 
     except Exception as e:
-        print(f"执行过程中发生错误: {str(e)}")
+        print(f"An error occurred during execution: {str(e)}")
         import traceback
         traceback.print_exc()
 
